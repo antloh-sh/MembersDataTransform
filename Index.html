@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Member Data Transformer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-6">
+
+    <div class="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8 border border-gray-100">
+        <header class="mb-8">
+            <h1 class="text-2xl font-bold text-gray-800">AAC Member Data Transformer</h1>
+            <p class="text-gray-500 text-sm">Upload your member details CSV to apply local transformations.</p>
+        </header>
+
+        <div class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Project/Batch Name</label>
+                <input type="text" id="batchName" 
+                       placeholder="e.g. Sennett_Batch_May2026" 
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder-gray-300">
+            </div>
+
+            <div class="border-2 border-dashed border-gray-200 rounded-xl p-10 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer" id="dropZone">
+                <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <p class="text-sm text-gray-600 font-medium">Click to upload or drag and drop</p>
+                <p class="text-xs text-gray-400 mt-1">DataListing-AACMemberDetails.csv</p>
+                <input type="file" id="fileInput" accept=".csv" class="hidden">
+            </div>
+
+            <button id="processBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                Transform & Download CSV
+            </button>
+
+            <div id="status" class="text-center text-sm font-medium hidden"></div>
+        </div>
+
+        <footer class="mt-8 pt-6 border-t border-gray-100 text-center">
+            <p class="text-xs text-gray-400">Processing is done locally in your browser. No data is sent to a server.</p>
+        </footer>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const processBtn = document.getElementById('processBtn');
+        const status = document.getElementById('status');
+
+        dropZone.onclick = () => fileInput.click();
+
+        fileInput.onchange = (e) => {
+            if (e.target.files.length > 0) {
+                status.innerText = `Selected: ${e.target.files[0].name}`;
+                status.classList.remove('hidden', 'text-red-500');
+                status.classList.add('text-green-600');
+            }
+        };
+
+        processBtn.onclick = () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert("Please select a file first.");
+                return;
+            }
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    const transformedData = results.data.map(row => {
+                        // 1. Transform NricAddress_UnitNo -> Floor and UnitNo
+                        let floor = "";
+                        let unitNo = "";
+                        if (row.NricAddress_UnitNo && row.NricAddress_UnitNo.includes('-')) {
+                            const parts = row.NricAddress_UnitNo.split('-');
+                            floor = parts[0].trim();
+                            unitNo = parts[1].trim();
+                        }
+
+                        // 2. Transform FullAddress -> StreetName (text between 1st and 3rd comma)
+                        let streetName = "";
+                        if (row.FullAddress) {
+                            const addrParts = row.FullAddress.split(',');
+                            // Index 1 is text between 1st/2nd comma, Index 2 is text between 2nd/3rd comma
+                            if (addrParts.length >= 3) {
+                                streetName = (addrParts[1].trim() + " " + addrParts[2].trim()).trim();
+                            } else if (addrParts.length === 2) {
+                                streetName = addrParts[1].trim();
+                            }
+                        }
+
+                        // Return new object with transformations and all original fields
+                        return {
+                            ...row,
+                            Floor: floor,
+                            UnitNo: unitNo,
+                            StreetName: streetName
+                        };
+                    });
+
+                    downloadCSV(transformedData);
+                }
+            });
+        };
+
+        function downloadCSV(data) {
+            const csv = Papa.unparse(data);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            
+            const batch = document.getElementById('batchName').value || 'transformed_data';
+            link.setAttribute("href", url);
+            link.setAttribute("download", `${batch}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            status.innerText = "Processing Complete! Check your downloads.";
+        }
+    </script>
+</body>
+</html>

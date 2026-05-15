@@ -6,43 +6,50 @@
     <title>CSV Member Data Transformer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        .drop-zone-active { @apply border-green-500 bg-green-50; }
+        .btn-disabled { @apply opacity-50 cursor-not-allowed bg-slate-400 hover:bg-slate-400 shadow-none transform-none; }
+    </style>
 </head>
-<body class="bg-slate-50 min-h-screen flex items-center justify-center p-6">
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-6 font-sans">
 
-    <div class="max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
+    <div class="max-w-xl w-full bg-white rounded-3xl shadow-2xl p-10 border border-slate-200">
         <header class="mb-10 text-center">
-            <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Member Data Transformer</h1>
-            <p class="text-slate-500 text-sm mt-2">Local CSV transformation for community outreach</p>
+            <h1 class="text-3xl font-black text-slate-800 tracking-tight">CSV Transformer</h1>
+            <p class="text-slate-500 text-sm mt-2 font-medium">Local processing for AAC Member Records</p>
         </header>
 
-        <div class="space-y-6">
+        <div class="space-y-8">
             <div>
-                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 ml-1">Output Filename</label>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Output File Name</label>
                 <input type="text" id="batchName" 
-                       placeholder="e.g. Outreach_List_May2026" 
-                       class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all placeholder-slate-300 text-slate-700">
+                       placeholder="e.g. Workshop_Attendance_2026" 
+                       class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-green-100 focus:border-green-500 focus:bg-white outline-none transition-all placeholder-slate-300 text-slate-700 font-semibold">
             </div>
 
-            <div class="group border-2 border-dashed border-slate-200 rounded-2xl p-12 flex flex-col items-center justify-center bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 transition-all cursor-pointer relative" id="dropZone">
-                <div class="bg-white p-3 rounded-full shadow-sm group-hover:scale-110 transition-transform">
-                    <svg class="w-8 h-8 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            <div id="dropZone" class="group border-2 border-dashed border-slate-200 rounded-3xl p-12 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 hover:border-slate-300 transition-all cursor-pointer relative overflow-hidden">
+                <div id="iconContainer" class="bg-white p-4 rounded-2xl shadow-sm group-hover:scale-110 transition-transform duration-300">
+                    <svg id="uploadIcon" class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                     </svg>
                 </div>
-                <p class="text-sm text-slate-600 font-medium mt-4">Drop your member CSV here</p>
-                <p class="text-xs text-slate-400 mt-1" id="fileNameDisplay">DataListing-AACMemberDetails.csv</p>
+                <p id="mainText" class="text-base text-slate-600 font-bold mt-5">Select Member CSV</p>
+                <p id="subText" class="text-xs text-slate-400 mt-1">DataListing-AACMemberDetails.csv</p>
                 <input type="file" id="fileInput" accept=".csv" class="hidden">
             </div>
 
-            <button id="processBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-indigo-100 active:scale-[0.98]">
-                Transform & Download
+            <button id="processBtn" disabled class="w-full bg-slate-400 text-white font-black py-5 rounded-2xl transition-all shadow-lg shadow-slate-200 opacity-50 cursor-not-allowed flex items-center justify-center gap-2 tracking-wide text-lg">
+                <span>Transform & Download</span>
             </button>
 
-            <div id="status" class="text-center text-sm font-semibold hidden py-2 rounded-lg"></div>
+            <div id="status" class="text-center text-xs font-bold uppercase tracking-widest hidden py-3 rounded-xl"></div>
         </div>
 
-        <footer class="mt-10 pt-6 border-t border-slate-50 text-center">
-            <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Privacy Guaranteed: Data never leaves your computer</p>
+        <footer class="mt-12 pt-8 border-t border-slate-50 text-center">
+            <div class="flex items-center justify-center gap-2 mb-2">
+                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Local Privacy Mode Active</p>
+            </div>
         </footer>
     </div>
 
@@ -51,24 +58,41 @@
         const dropZone = document.getElementById('dropZone');
         const processBtn = document.getElementById('processBtn');
         const status = document.getElementById('status');
-        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const iconContainer = document.getElementById('iconContainer');
+        const uploadIcon = document.getElementById('uploadIcon');
+        const mainText = document.getElementById('mainText');
+        const subText = document.getElementById('subText');
 
         dropZone.onclick = () => fileInput.click();
 
         fileInput.onchange = (e) => {
             if (e.target.files.length > 0) {
-                fileNameDisplay.innerText = e.target.files[0].name;
-                status.innerText = "File ready for transformation";
-                status.className = "text-center text-sm font-semibold py-2 rounded-lg text-indigo-600 bg-indigo-50 block";
+                const file = e.target.files[0];
+                
+                // UI Transformation to Green State
+                dropZone.classList.replace('bg-slate-50', 'bg-green-50');
+                dropZone.classList.replace('border-slate-200', 'border-green-400');
+                iconContainer.classList.add('bg-green-500');
+                uploadIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>';
+                uploadIcon.classList.replace('text-slate-400', 'text-white');
+                mainText.innerText = "File Ready";
+                mainText.classList.replace('text-slate-600', 'text-green-700');
+                subText.innerText = file.name;
+                subText.classList.replace('text-slate-400', 'text-green-600');
+
+                // Enable Button
+                processBtn.disabled = false;
+                processBtn.classList.remove('bg-slate-400', 'opacity-50', 'cursor-not-allowed');
+                processBtn.classList.add('bg-green-600', 'hover:bg-green-700', 'shadow-green-100', 'active:scale-95');
+                
+                status.innerText = "Ready to transform";
+                status.className = "text-center text-xs font-bold uppercase tracking-widest text-green-600 block";
             }
         };
 
         processBtn.onclick = () => {
             const file = fileInput.files[0];
-            if (!file) {
-                alert("Please select a CSV file first.");
-                return;
-            }
+            if (!file) return;
 
             Papa.parse(file, {
                 header: true,
@@ -80,29 +104,20 @@
                         let unitNo = "";
                         const unitRaw = row.NricAddress_UnitNo || "";
                         if (unitRaw.includes('-')) {
-                            const parts = unitRaw.split('-');
-                            floor = parts[0].trim();
-                            unitNo = parts[1].trim();
+                            const [f, u] = unitRaw.split('-');
+                            floor = f.trim();
+                            unitNo = u.trim();
                         }
 
-                        // 2. Transform FullAddress (StreetName is text between 1st and 2nd comma)
+                        // 2. Transform FullAddress (StreetName between 1st and 2nd comma)
                         let streetName = "";
                         const fullAddr = row.FullAddress || "";
-                        if (fullAddr.includes(',')) {
-                            const addrParts = fullAddr.split(',');
-                            if (addrParts.length > 1) {
-                                // Index 1 is the content between the first and second comma
-                                streetName = addrParts[1].trim();
-                            }
+                        const addrParts = fullAddr.split(',');
+                        if (addrParts.length > 1) {
+                            streetName = addrParts[1].trim();
                         }
 
-                        // Return combined data: Original fields + transformed new columns
-                        return {
-                            ...row,
-                            Floor: floor,
-                            UnitNo: unitNo,
-                            StreetName: streetName
-                        };
+                        return { ...row, Floor: floor, UnitNo: unitNo, StreetName: streetName };
                     });
 
                     downloadCSV(transformedData);
@@ -116,16 +131,16 @@
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             
-            const batch = document.getElementById('batchName').value.trim().replace(/\s+/g, '_') || 'transformed_members';
+            const batchName = document.getElementById('batchName').value.trim().replace(/\s+/g, '_') || 'transformed_data';
             link.setAttribute("href", url);
-            link.setAttribute("download", `${batch}.csv`);
+            link.setAttribute("download", `${batchName}.csv`);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             
-            status.innerText = "Success! File downloaded locally.";
-            status.className = "text-center text-sm font-semibold py-2 rounded-lg text-green-600 bg-green-50 block";
+            status.innerText = "Download Complete!";
+            status.className = "text-center text-xs font-bold uppercase tracking-widest text-blue-600 block";
         }
     </script>
 </body>

@@ -7,8 +7,54 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
-        .drop-zone-active { @apply border-green-500 bg-green-50; }
-        .btn-disabled { @apply opacity-50 cursor-not-allowed bg-slate-400 hover:bg-slate-400 shadow-none transform-none; }
+        .drop-zone-active { border-color: #4ade80; background-color: #f0fdf4; }
+        .btn-disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Service boundary toggle pills */
+        .boundary-option input[type="radio"] { display: none; }
+        .boundary-option label {
+            display: block;
+            padding: 8px 0;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            color: #94a3b8;
+            background: transparent;
+        }
+        .boundary-option input[type="radio"]:checked + label {
+            background: #fff;
+            color: #1e293b;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+        }
+        .boundary-option input[type="radio"]#boundary-yes:checked + label { color: #16a34a; }
+        .boundary-option input[type="radio"]#boundary-no:checked + label  { color: #dc2626; }
+
+        /* Custom checkbox */
+        .custom-check { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .custom-check input { display: none; }
+        .check-box {
+            width: 20px; height: 20px; flex-shrink: 0;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            background: #f8fafc;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s ease;
+        }
+        .custom-check input:checked ~ .check-box {
+            background: #16a34a; border-color: #16a34a;
+        }
+        .check-box svg { display: none; }
+        .custom-check input:checked ~ .check-box svg { display: block; }
+
+        /* Record count badge */
+        #recordCount {
+            transition: all 0.3s ease;
+        }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen flex items-center justify-center p-6 font-sans">
@@ -20,13 +66,58 @@
         </header>
 
         <div class="space-y-8">
+
+            <!-- Output File Name -->
             <div>
                 <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Output File Name</label>
-                <input type="text" id="batchName" 
-                       placeholder="e.g. Members_May_2026" 
+                <input type="text" id="batchName"
+                       placeholder="e.g. Members_26May2026"
                        class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-green-100 focus:border-green-500 focus:bg-white outline-none transition-all placeholder-slate-300 text-slate-700 font-semibold">
             </div>
 
+            <!-- Filters Section -->
+            <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-5">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Filters</p>
+
+                <!-- Service Boundary Filter -->
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 mb-2">Service Boundary</p>
+                    <div class="grid grid-cols-3 gap-1 bg-slate-200 rounded-[14px] p-1">
+                        <div class="boundary-option">
+                            <input type="radio" name="boundary" id="boundary-all" value="all" checked>
+                            <label for="boundary-all">All</label>
+                        </div>
+                        <div class="boundary-option">
+                            <input type="radio" name="boundary" id="boundary-yes" value="Yes">
+                            <label for="boundary-yes">Within</label>
+                        </div>
+                        <div class="boundary-option">
+                            <input type="radio" name="boundary" id="boundary-no" value="No">
+                            <label for="boundary-no">Outside</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Age 60+ Filter -->
+                <div>
+                    <label class="custom-check">
+                        <input type="checkbox" id="ageFilter">
+                        <div class="check-box">
+                            <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                                <path d="M1 4L4 7.5L10 1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-semibold text-slate-600">Age 60 or older only</span>
+                    </label>
+                </div>
+
+                <!-- Record Count -->
+                <div id="recordCount" class="hidden text-xs font-bold text-slate-400 pt-1 border-t border-slate-200">
+                    — load a file to see match count
+                </div>
+            </div>
+
+            <!-- Drop Zone -->
             <div id="dropZone" class="group border-2 border-dashed border-slate-200 rounded-3xl p-12 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 hover:border-slate-300 transition-all cursor-pointer relative overflow-hidden">
                 <div id="iconContainer" class="bg-white p-4 rounded-2xl shadow-sm group-hover:scale-110 transition-transform duration-300">
                     <svg id="uploadIcon" class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,83 +145,193 @@
     </div>
 
     <script>
-        const fileInput = document.getElementById('fileInput');
-        const dropZone = document.getElementById('dropZone');
-        const processBtn = document.getElementById('processBtn');
-        const status = document.getElementById('status');
+        const fileInput    = document.getElementById('fileInput');
+        const dropZone     = document.getElementById('dropZone');
+        const processBtn   = document.getElementById('processBtn');
+        const status       = document.getElementById('status');
         const iconContainer = document.getElementById('iconContainer');
-        const uploadIcon = document.getElementById('uploadIcon');
-        const mainText = document.getElementById('mainText');
-        const subText = document.getElementById('subText');
+        const uploadIcon   = document.getElementById('uploadIcon');
+        const mainText     = document.getElementById('mainText');
+        const subText      = document.getElementById('subText');
+        const recordCount  = document.getElementById('recordCount');
+        const ageFilter    = document.getElementById('ageFilter');
+
+        // Columns to remove from output after transform
+        const COLUMNS_TO_REMOVE = ['NricAddress_BlockNo', 'NricAddress_UnitNo', 'FullAddress', 'Phone'];
+
+        // Default output file name: Members_ddMMMyyyy
+        (function setDefaultFileName() {
+            const now = new Date();
+            const dd  = String(now.getDate()).padStart(2, '0');
+            const mmm = now.toLocaleString('en-GB', { month: 'short' }); // Jan, Feb …
+            const yyyy = now.getFullYear();
+            document.getElementById('batchName').value = `Members_${dd}${mmm}${yyyy}`;
+        })();
+
+        // Parse Phone field → { homePhone, mobilePhone }
+        function parsePhone(raw) {
+            let homePhone   = '';
+            let mobilePhone = '';
+            if (!raw) return { homePhone, mobilePhone };
+            // Extract (H) number — digits (and spaces) after (H) up to next token or end
+            const hMatch = raw.match(/\(H\)\s*([\d\s]+?)(?=,|\(|;|$)/i);
+            if (hMatch) homePhone = hMatch[1].trim().replace(/\s+/g, '');
+            // Extract (M) number
+            const mMatch = raw.match(/\(M\)\s*([\d\s]+?)(?=,|\(|;|$)/i);
+            if (mMatch) mobilePhone = mMatch[1].trim().replace(/\s+/g, '');
+            return { homePhone, mobilePhone };
+        }
+
+        // Cached parsed rows (all rows, pre-filter)
+        let allRows = [];
 
         dropZone.onclick = () => fileInput.click();
 
-        fileInput.onchange = (e) => {
-            if (e.target.files.length > 0) {
-                const file = e.target.files[0];
-                
-                // UI Transformation to Green State
-                dropZone.classList.replace('bg-slate-50', 'bg-green-50');
-                dropZone.classList.replace('border-slate-200', 'border-green-400');
-                iconContainer.classList.add('bg-green-500');
-                uploadIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>';
-                uploadIcon.classList.replace('text-slate-400', 'text-white');
-                mainText.innerText = "File Ready";
-                mainText.classList.replace('text-slate-600', 'text-green-700');
-                subText.innerText = file.name;
-                subText.classList.replace('text-slate-400', 'text-green-600');
+        // Re-compute count when filters change
+        document.querySelectorAll('input[name="boundary"]').forEach(r => r.addEventListener('change', updateCount));
+        ageFilter.addEventListener('change', updateCount);
 
-                // Enable Button
-                processBtn.disabled = false;
-                processBtn.classList.remove('bg-slate-400', 'opacity-50', 'cursor-not-allowed');
-                processBtn.classList.add('bg-green-600', 'hover:bg-green-700', 'shadow-green-100', 'active:scale-95');
-                
-                status.innerText = "Ready to transform";
-                status.className = "text-center text-xs font-bold uppercase tracking-widest text-green-600 block";
-            }
+        fileInput.onchange = (e) => {
+            if (e.target.files.length === 0) return;
+            const file = e.target.files[0];
+
+            // Parse to cache all rows and show count
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    allRows = results.data;
+                    updateCount();
+                }
+            });
+
+            // UI → green state
+            dropZone.classList.replace('bg-slate-50', 'bg-green-50');
+            dropZone.classList.replace('border-slate-200', 'border-green-400');
+            iconContainer.classList.add('bg-green-500');
+            uploadIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>';
+            uploadIcon.classList.replace('text-slate-400', 'text-white');
+            mainText.innerText = "File Ready";
+            mainText.classList.replace('text-slate-600', 'text-green-700');
+            subText.innerText = file.name;
+            subText.classList.replace('text-slate-400', 'text-green-600');
+
+            // Enable button
+            processBtn.disabled = false;
+            processBtn.classList.remove('bg-slate-400', 'opacity-50', 'cursor-not-allowed');
+            processBtn.classList.add('bg-green-600', 'hover:bg-green-700', 'shadow-green-100', 'active:scale-95');
+
+            status.innerText = "Ready to transform";
+            status.className = "text-center text-xs font-bold uppercase tracking-widest text-green-600 block";
         };
+
+        function getSelectedBoundary() {
+            return document.querySelector('input[name="boundary"]:checked').value;
+        }
+
+        function getAge(dateOfBirth) {
+            // Format: DD-Mon-YYYY  e.g. "01-Oct-1942"
+            if (!dateOfBirth) return null;
+            const parts = dateOfBirth.trim().split('-');
+            if (parts.length < 3) return null;
+            const birthYear = parseInt(parts[2], 10);
+            if (isNaN(birthYear)) return null;
+            const currentYear = new Date().getFullYear();
+            return currentYear - birthYear;
+        }
+
+        function applyFilters(rows) {
+            const boundary = getSelectedBoundary();
+            const ageOnly  = ageFilter.checked;
+
+            return rows.filter(row => {
+                // Service boundary filter
+                if (boundary !== 'all') {
+                    const val = (row.ResidesWithinServiceBoundaryStr || '').trim();
+                    if (val !== boundary) return false;
+                }
+                // Age 60+ filter
+                if (ageOnly) {
+                    const age = getAge(row.DateOfBirth);
+                    if (age === null || age < 60) return false;
+                }
+                return true;
+            });
+        }
+
+        function updateCount() {
+            if (allRows.length === 0) return;
+            const matched = applyFilters(allRows).length;
+            recordCount.classList.remove('hidden');
+            recordCount.innerHTML =
+                `<span class="text-slate-700">${matched.toLocaleString()}</span>` +
+                ` of ${allRows.length.toLocaleString()} records match current filters`;
+        }
 
         processBtn.onclick = () => {
             const file = fileInput.files[0];
             if (!file) return;
 
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    const transformedData = results.data.map(row => {
-                        // 1. Transform NricAddress_UnitNo (Floor before -, UnitNo after -)
-                        let floor = "";
-                        let unitNo = "";
-                        const unitRaw = row.NricAddress_UnitNo || "";
-                        if (unitRaw.includes('-')) {
-                            const [f, u] = unitRaw.split('-');
-                            floor = f.trim();
-                            unitNo = u.trim();
-                        }
-
-                        // 2. Transform FullAddress (StreetName between 1st and 2nd comma)
-                        let streetName = "";
-                        const fullAddr = row.FullAddress || "";
-                        const addrParts = fullAddr.split(',');
-                        if (addrParts.length > 1) {
-                            streetName = addrParts[1].trim();
-                        }
-
-                        return { ...row, Floor: floor, UnitNo: unitNo, StreetName: streetName };
-                    });
-
-                    downloadCSV(transformedData);
-                }
-            });
+            // Use cached rows if available, otherwise re-parse
+            if (allRows.length > 0) {
+                processRows(allRows);
+            } else {
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        allRows = results.data;
+                        processRows(allRows);
+                    }
+                });
+            }
         };
 
-        function downloadCSV(data) {
-            const csv = Papa.unparse(data);
+        function processRows(rows) {
+            // 1. Apply filters
+            const filtered = applyFilters(rows);
+
+            // 2. Transform each row
+            const transformed = filtered.map(row => {
+                // Extract Floor and UnitNo from NricAddress_UnitNo
+                let floor = "";
+                let unitNo = "";
+                const unitRaw = row.NricAddress_UnitNo || "";
+                if (unitRaw.includes('-')) {
+                    const [f, u] = unitRaw.split('-');
+                    floor  = f.trim();
+                    unitNo = u.trim();
+                }
+
+                // Extract StreetName from FullAddress (between 1st and 2nd comma)
+                let streetName = "";
+                const fullAddr = row.FullAddress || "";
+                const addrParts = fullAddr.split(',');
+                if (addrParts.length > 1) {
+                    streetName = addrParts[1].trim();
+                }
+
+                // Split Phone into Home Phone and Mobile Phone
+                const { homePhone, mobilePhone } = parsePhone(row.Phone || "");
+
+                // Build new row with derived columns added
+                const newRow = { ...row, Floor: floor, UnitNo: unitNo, StreetName: streetName, 'Home Phone': homePhone, 'Mobile Phone': mobilePhone };
+
+                // 3. Remove source columns
+                COLUMNS_TO_REMOVE.forEach(col => delete newRow[col]);
+
+                return newRow;
+            });
+
+            downloadCSV(transformed, filtered.length, rows.length);
+        }
+
+        function downloadCSV(data, matchedCount, totalCount) {
+            const csv  = Papa.unparse(data);
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
+            const url  = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            
+
             const batchName = document.getElementById('batchName').value.trim().replace(/\s+/g, '_') || 'transformed_data';
             link.setAttribute("href", url);
             link.setAttribute("download", `${batchName}.csv`);
@@ -138,8 +339,8 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
-            status.innerText = "Download Complete!";
+
+            status.innerText = `Downloaded ${matchedCount.toLocaleString()} of ${totalCount.toLocaleString()} records`;
             status.className = "text-center text-xs font-bold uppercase tracking-widest text-blue-600 block";
         }
     </script>

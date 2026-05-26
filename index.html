@@ -236,9 +236,11 @@
             // UI → green state
             dropZone.classList.replace('bg-slate-50', 'bg-green-50');
             dropZone.classList.replace('border-slate-200', 'border-green-400');
+            iconContainer.classList.remove('bg-white');
             iconContainer.classList.add('bg-green-500');
-            uploadIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>';
-            uploadIcon.classList.replace('text-slate-400', 'text-white');
+            uploadIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>';
+            uploadIcon.classList.remove('text-slate-400');
+            uploadIcon.classList.add('text-white');
             mainText.innerText = "File Ready";
             mainText.classList.replace('text-slate-600', 'text-green-700');
             subText.innerText = file.name;

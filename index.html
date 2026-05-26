@@ -157,7 +157,35 @@
         const ageFilter    = document.getElementById('ageFilter');
 
         // Columns to remove from output after transform
-        const COLUMNS_TO_REMOVE = ['NricAddress_BlockNo', 'NricAddress_UnitNo', 'FullAddress', 'Phone'];
+        const COLUMNS_TO_REMOVE = ['NricAddress_UnitNo', 'FullAddress', 'Phone'];
+
+        // Final column order for output CSV
+        // Phone slot → Home Phone, Mobile Phone
+        // Address block → PostalCode, BlockNo, Floor, UnitNo, StreetName, Ownership
+        const COLUMN_ORDER = [
+            'Centre','MembershipId','CurrentMembershipStatus','JoinedDate','TerminatedDate',
+            'RegistrationDocumentType','RegistrationDocumentNumber',
+            'Salutation','FullNameNative','ToAddressAs',
+            'DateOfBirth','Age','Gender','MaritalStatus','Citizenship','Race','Religion',
+            'Home Phone','Mobile Phone',
+            'ResidesWithinServiceBoundaryStr',
+            'NricAddress_PostalCode','NricAddress_BlockNo','Floor','UnitNo','StreetName',
+            'NricAddress_Ownership',
+            'SpokenLanguage','Mobility','LevelOfCare','IsFaceRegistered','RFID',
+            'Hobbies','Remarks','AssignedStaffs','AssignedVolunteers',
+            'LastActivity','LastActivityAttendedOn','BnBType','IRConcatenatedString',
+            'DeclinedCSStr','AssessmentDate','AUAScore','NextReviewDate',
+            'InterRAICSAssessmentDate','InterRAICSSCALES','InterRAICSCAPS','InterRAICSNextReviewDate'
+        ];
+
+        function reorderRow(row) {
+            const ordered = {};
+            // Add known columns in defined order (skip any missing)
+            COLUMN_ORDER.forEach(col => { if (col in row) ordered[col] = row[col]; });
+            // Append any unexpected extra columns at the end
+            Object.keys(row).forEach(col => { if (!(col in ordered)) ordered[col] = row[col]; });
+            return ordered;
+        }
 
         // Default output file name: Members_ddMMMyyyy
         (function setDefaultFileName() {
@@ -320,7 +348,8 @@
                 // 3. Remove source columns
                 COLUMNS_TO_REMOVE.forEach(col => delete newRow[col]);
 
-                return newRow;
+                // 4. Reorder columns
+                return reorderRow(newRow);
             });
 
             downloadCSV(transformed, filtered.length, rows.length);
